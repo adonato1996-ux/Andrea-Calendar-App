@@ -1,0 +1,36 @@
+name: Refresh compiled app
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refresh site from verified private build
+        env:
+          SOURCE_SHA: "99e61405d4317767c80b7568195790d7bb9451ac"
+          DIST_URL: "https://sdmntprnortheu.oaiusercontent.com/files/00000000-02b0-81f4-ba91-a97b9370d73b/raw?se=2026-10-02T14%3A35%3A41Z&sp=r&sv=2026-02-06&sr=b&scid=34285183-0988-5e96-a062-6f4cc1790681&skoid=d294dba5-36f7-432b-aab8-935656489847&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-02T08%3A23%3A11Z&ske=2026-10-03T08%3A23%3A11Z&sks=b&skv=2026-02-06&sig=poheNzNZDExiYzJOSkObvYXc1UsMOnTW7SDM1jq97ek%3D"
+        run: |
+          set -euo pipefail
+          if [ -f site/.source-sha ] && [ "$(cat site/.source-sha)" = "$SOURCE_SHA" ]; then
+            echo "Public site is already current."
+            exit 0
+          fi
+          curl -L --fail --retry 3 "$DIST_URL" -o /tmp/andrea-calendar.zip
+          rm -rf site
+          mkdir -p site
+          unzip -q /tmp/andrea-calendar.zip -d site
+          test -f site/index.html
+          printf '%s' "$SOURCE_SHA" > site/.source-sha
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site
+          git commit -m "deploy: refresh iPhone 17 Pro Max layout"
+          git push
