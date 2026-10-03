@@ -1,0 +1,38 @@
+name: Refresh agenda build
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refresh site from verified private build
+        env:
+          SOURCE_SHA: "6399c2151d69ef3c2e67b3414b9b3665e7dd4e19"
+          DIST_URL: 'https://sdmntprdenmarkeast.oaiusercontent.com/files/00000000-1860-8210-b449-6cd1a060c57f/raw?se=2026-10-03T12%3A41%3A10Z&sp=r&sv=2026-02-06&sr=b&scid=652a51d5-5337-5753-973e-3fcc86ed03d6&skoid=d294dba5-36f7-432b-aab8-935656489847&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-03T03%3A56%3A21Z&ske=2026-10-04T03%3A56%3A21Z&sks=b&skv=2026-02-06&sig=Xdsn9fEuyKz5LB2cPxPoL741t2r7uevAh7I2lv8/cUI%3D'
+        run: |
+          set -euo pipefail
+          if [ -f site/.source-sha ] && [ "$(cat site/.source-sha)" = "$SOURCE_SHA" ]; then
+            echo "Public site is already current."
+            exit 0
+          fi
+          curl -L --fail --retry 3 "$DIST_URL" -o /tmp/andrea-calendar.zip
+          rm -rf site
+          mkdir -p site
+          unzip -q /tmp/andrea-calendar.zip -d site
+          test -f site/index.html
+          test -f site/manifest.webmanifest
+          test -f site/sw.js
+          printf '%s' "$SOURCE_SHA" > site/.source-sha
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site
+          git commit -m "deploy: publish agenda-first calendar"
+          git push
