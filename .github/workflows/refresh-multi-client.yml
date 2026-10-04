@@ -1,0 +1,38 @@
+name: Refresh multi-client Telegram build
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Refresh site from verified private build
+        env:
+          SOURCE_SHA: "22fd12cec773d8ccae6c14f0a803466c1026f00f"
+          DIST_URL: "https://sdmntprdenmarkeast.oaiusercontent.com/files/00000000-8074-8210-b5f7-013a16b81b82/raw?se=2026-10-04T00%3A47%3A48Z&sp=r&sv=2026-02-06&sr=b&scid=db4ba2a5-723c-54ef-ac30-16887675dfe0&skoid=d294dba5-36f7-432b-aab8-935656489847&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-03T18%3A55%3A41Z&ske=2026-10-04T18%3A55%3A41Z&sks=b&skv=2026-02-06&sig=vjkfiTA5YsEwGnUz%2Bg1XZjBdKH36KPwhaucq9jo8n3o%3D"
+        run: |
+          set -euo pipefail
+          if [ -f site/.source-sha ] && [ "$(cat site/.source-sha)" = "$SOURCE_SHA" ]; then
+            echo "Public site is already current."
+            exit 0
+          fi
+          curl -L --fail --retry 3 "$DIST_URL" -o /tmp/andrea-calendar.zip
+          rm -rf site
+          mkdir -p site
+          unzip -q /tmp/andrea-calendar.zip -d site
+          test -f site/index.html
+          test -f site/manifest.webmanifest
+          test -f site/sw.js
+          printf '%s' "$SOURCE_SHA" > site/.source-sha
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site
+          git commit -m "deploy: support separate PWA Telegram pairing"
+          git push
